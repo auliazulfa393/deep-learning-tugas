@@ -9,6 +9,7 @@ app = Flask(__name__)
 def index():
     return render_template('index.html')
 
+
 # ==============================
 # 🔹 KALKULATOR LOGIKA
 # ==============================
@@ -106,7 +107,7 @@ def predict_stock_api():
 
 
 # ==============================
-# 🚀 RUN APP
+# 🚀 RUN APP (Replit-friendly)
 # ==============================
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=True)
