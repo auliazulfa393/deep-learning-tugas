@@ -39,7 +39,6 @@ def logic_gate():
     else:
         return jsonify({'ok': False, 'error': 'Invalid Gate'}), 400
 
-    # Tabel kebenaran
     truth_table = []
     for x in [0, 1]:
         for y in [0, 1]:
@@ -103,11 +102,22 @@ def predict_stock_api():
     preds = [round(base * (1 + i * 0.015), 2) for i in range(1, 6)]
     days = [f"Hari ke-{i}" for i in range(1, 6)]
 
-    return jsonify({'ok': True, 'symbol': symbol, 'days': days, 'predictions': preds})
+    # Format ke Rupiah
+    preds_rp = [f"Rp {p:,.0f}" for p in preds]
+
+    return jsonify({
+        'ok': True,
+        'symbol': symbol,
+        'days': days,
+        'predictions': preds,
+        'predictions_rp': preds_rp,
+        'periode': f"{len(days)} hari ke depan",
+        'prediksi_terakhir': f"Rp {preds[-1]:,.0f}"
+    })
 
 
 # ==============================
-# 🚀 RUN APP (Replit-friendly)
+# 🚀 RUN APP
 # ==============================
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=True)
