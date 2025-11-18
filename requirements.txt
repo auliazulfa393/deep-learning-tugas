@@ -1,7 +1,23 @@
-Flask==2.2.5
-Flask-Cors==4.0.0
+# Flask & Server
+flask==3.0.0
 gunicorn==21.2.0
-pandas==2.2.2
-numpy==1.26.4
-tensorflow-cpu==2.17.0
-Pillow==10.2.0
+
+# PyTorch CPU (kecil & compatible)
+torch==2.2.0
+torchvision==0.17.0
+
+# YOLO
+ultralytics==8.2.0
+
+# Tensorflow CPU (hindari GPU version)
+tensorflow-cpu==2.12.0
+
+# Other ML packages
+pillow
+opencv-python-headless==4.9.0.80
+matplotlib
+numpy
+pandas
+
+# Keras
+keras==2.12.0
