@@ -6,21 +6,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
-import time
-
-# ======================================
-# 🔥 IMPORT CNN (PyTorch)
-# ======================================
-import torch
-import torch.nn as nn
-import torchvision.transforms as transforms
-from PIL import Image
-
-# ======================================
-# 🔥 IMPORT YOLO & OPENCV
-# ======================================
-from ultralytics import YOLO
-import cv2
 
 # ======================================
 # 🔥 IMPORT RNN / LSTM / GRU (Keras)
@@ -31,172 +16,12 @@ from tensorflow.keras.utils import to_categorical
 
 app = Flask(__name__)
 
-# ============================================================
-# 🔥🔥 CNN MODEL DEFINITION
-# ============================================================
-class SimpleCNN(nn.Module):
-    def __init__(self):
-        super(SimpleCNN, self).__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(1, 16, 3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-
-            nn.Conv2d(16, 32, 3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2)
-        )
-        self.fc = nn.Sequential(
-            nn.Linear(32 * 7 * 7, 128),
-            nn.ReLU(),
-            nn.Linear(128, 10)
-        )
-
-    def forward(self, x):
-        x = self.conv(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc(x)
-        return x
-
-
-# ============================================================
-# 🔥 LOAD CNN MODEL
-# ============================================================
-MODEL_PATH = "best_model.pth"
-
-if os.path.exists(MODEL_PATH):
-    try:
-        model_cnn = SimpleCNN()
-        model_cnn.load_state_dict(torch.load(MODEL_PATH, map_location='cpu'))
-        model_cnn.eval()
-        print("✅ CNN model loaded!")
-    except Exception as e:
-        model_cnn = None
-        print("❌ Failed loading CNN model:", e)
-else:
-    model_cnn = None
-    print("❌ best_model.pth NOT FOUND!")
-
-transform_cnn = transforms.Compose([
-    transforms.Grayscale(num_output_channels=1),
-    transforms.Resize((28, 28)),
-    transforms.ToTensor(),
-    transforms.Normalize((0.5,), (0.5,))
-])
-
-classes_mnist = [str(i) for i in range(10)]
-
-# ============================================================
-# 🔥 LOAD YOLO MODEL (object detection)
-# ============================================================
-YOLO_PATH = "yolo/yolov8n.pt"
-
-try:
-    if os.path.exists(YOLO_PATH):
-        MODEL_YOLO = YOLO(YOLO_PATH)
-        print("✅ YOLO model loaded:", YOLO_PATH)
-    else:
-        MODEL_YOLO = None
-        print("❌ YOLO model not found at", YOLO_PATH)
-except Exception as e:
-    MODEL_YOLO = None
-    print("❌ Error loading YOLO model:", e)
-
-
 # ======================================================================
 # 🏠 HALAMAN UTAMA
 # ======================================================================
 @app.route('/')
 def index():
     return render_template('index.html')
-
-
-# ======================================================================
-# 🔥 OBJEK CNN PAGE
-# ======================================================================
-@app.route('/objek')
-def objek_page():
-    return render_template('objek.html')
-
-
-# ======================================================================
-# 🔥🔥 ENDPOINT CNN PREDICT
-# ======================================================================
-@app.route('/api/cnn_predict', methods=['POST'])
-def api_cnn_predict():
-    if model_cnn is None:
-        return jsonify({"ok": False, "msg": "Model CNN tidak ditemukan"})
-
-    file = request.files.get("image")
-    if file is None:
-        return jsonify({"ok": False, "msg": "No image uploaded"})
-
-    img = Image.open(file.stream).convert("RGB")
-    img_tensor = transform_cnn(img).unsqueeze(0)
-
-    with torch.no_grad():
-        output = model_cnn(img_tensor)
-        prob = torch.softmax(output, dim=1)
-        score, pred = torch.max(prob, 1)
-
-    return jsonify({
-        "ok": True,
-        "label": classes_mnist[pred.item()],
-        "score": round(float(score.item()) * 100, 2)
-    })
-
-
-# ======================================================================
-# 🔥 YOLO DETECTION FIXED VERSION
-# ======================================================================
-@app.route('/api/object_detect', methods=['POST'])
-def object_detect_api():
-    if MODEL_YOLO is None:
-        return jsonify({"ok": False, "msg": "Model YOLO tidak siap!"}), 500
-
-    if 'image' not in request.files:
-        return jsonify({'ok': False, 'msg': 'Tidak ada file gambar'}), 400
-
-    file = request.files['image']
-    img_bytes = file.read()
-
-    nparr = np.frombuffer(img_bytes, np.uint8)
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
-    if img is None:
-        return jsonify({"ok": False, "msg": "Gambar tidak bisa dibaca"}), 400
-
-    results = MODEL_YOLO(img)
-
-    detected_objects = []
-    found = False
-
-    for result in results:
-        for box in result.boxes:
-            found = True
-            x1, y1, x2, y2 = [int(v) for v in box.xyxy[0]]
-            conf = float(box.conf[0])
-            cls = int(box.cls.item()) 
-            label = MODEL_YOLO.names.get(cls, str(cls))
-
-            detected_objects.append({
-                "label": label,
-                "confidence": round(conf * 100, 2)
-            })
-
-            cv2.rectangle(img, (x1, y1), (x2, y2), (0, 150, 255), 3)
-            cv2.putText(img, f"{label} {conf:.2f}", (x1, y1 - 5),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 150, 255), 2)
-
-    _, buffer = cv2.imencode('.jpg', img)
-    img_base64 = base64.b64encode(buffer).decode()
-
-    return jsonify({
-        "ok": True,
-        "found": found,
-        "objects": detected_objects,
-        "image": img_base64
-    })
 
 
 # ======================================================================
